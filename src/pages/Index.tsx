@@ -55,6 +55,12 @@ function load<T>(key: string, fallback: T): T {
 
 export default function Index() {
   const [section, setSection] = useState('home');
+  const [prevSection, setPrevSection] = useState('home');
+
+  const goSection = (s: string) => {
+    setPrevSection(section);
+    setSection(s);
+  };
   const [posts, setPosts] = useState<Post[]>(() => load('mg_posts', DEFAULT_POSTS));
   const [links, setLinks] = useState<LinkButton[]>(() => load('mg_links', DEFAULT_LINKS));
   const [likes, setLikes] = useState<Record<string, number>>(() => load('mg_likes', {}));
@@ -110,7 +116,7 @@ export default function Index() {
             {nav.map((n) => (
               <button
                 key={n.id}
-                onClick={() => setSection(n.id)}
+                onClick={() => goSection(n.id)}
                 className={`transition-opacity ${section === n.id ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`}
               >
                 {n.label}
@@ -118,7 +124,7 @@ export default function Index() {
             ))}
           </nav>
           <button
-            onClick={() => setSection('admin')}
+            onClick={() => goSection('admin')}
             className="text-xs tracking-widest uppercase opacity-50 hover:opacity-100 flex items-center gap-2"
           >
             <Icon name="Lock" size={14} /> Админ
@@ -127,9 +133,9 @@ export default function Index() {
       </header>
 
       <main className="pt-20">
-        {section === 'home' && <Home posts={posts} links={links} go={setSection} openBox={setLightbox} />}
+        {section === 'home' && <Home posts={posts} links={links} go={goSection} openBox={setLightbox} />}
         {section === 'gallery' && (
-          <Gallery posts={posts} likes={likes} liked={liked} like={toggleLike} openBox={setLightbox} />
+          <Gallery posts={posts} likes={likes} liked={liked} like={toggleLike} openBox={setLightbox} onBack={() => goSection(prevSection)} />
         )}
         {section === 'about' && <About />}
         {section === 'contacts' && <Contacts links={links} />}
@@ -225,12 +231,15 @@ function Home({ posts, links, go, openBox }: { posts: Post[]; links: LinkButton[
   );
 }
 
-function Gallery({ posts, likes, liked, like, openBox }: {
+function Gallery({ posts, likes, liked, like, openBox, onBack }: {
   posts: Post[]; likes: Record<string, number>; liked: Record<string, boolean>;
-  like: (id: string) => void; openBox: (p: Post) => void;
+  like: (id: string) => void; openBox: (p: Post) => void; onBack: () => void;
 }) {
   return (
     <div className="max-w-6xl mx-auto px-6 pt-20 pb-10 animate-fade-in">
+      <button onClick={onBack} className="flex items-center gap-2 text-xs tracking-widest uppercase opacity-50 hover:opacity-100 transition-opacity mb-10">
+        <Icon name="ArrowLeft" size={14} /> Вернуться
+      </button>
       <h1 className="font-display text-5xl md:text-7xl mb-12">Галерея</h1>
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 [&>*]:mb-4">
         {posts.map((p, i) => (
