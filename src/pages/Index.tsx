@@ -514,8 +514,8 @@ function Admin(props: AdminProps) {
       <div className="flex flex-wrap gap-3 items-center justify-between mb-6">
         <h2 className="font-display text-3xl">Посты</h2>
         <label className="text-xs tracking-widest uppercase border border-foreground px-4 py-2.5 cursor-pointer hover:bg-foreground hover:text-background transition-colors flex items-center gap-2">
-          <Icon name="Upload" size={14} /> Загрузить файлы
-          <input type="file" accept="image/*,video/*" multiple className="hidden"
+          <Icon name="Upload" size={14} /> Загрузить фото / видео
+          <input type="file" accept="image/*,video/*" className="hidden"
             onChange={(e) => e.target.files && e.target.files.length > 0 && draftAddPost(e.target.files)} />
         </label>
       </div>
@@ -578,7 +578,7 @@ function Admin(props: AdminProps) {
 
       {saved !== 'idle' && (
         <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 bg-foreground text-background px-8 py-3 text-sm tracking-widest uppercase flex items-center gap-3 shadow-xl ${saved === 'in' ? 'animate-fade-in' : 'animate-fade-out'}`}>
-          <Icon name="Check" size={16} /> Успешно ✓
+          <Icon name="Check" size={16} /> Успешно
         </div>
       )}
     </div>
