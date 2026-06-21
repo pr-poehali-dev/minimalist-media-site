@@ -96,7 +96,7 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="fixed top-0 inset-x-0 z-40 backdrop-blur-md bg-background/70 border-b border-border">
+      <header className="fixed top-0 inset-x-0 z-40 backdrop-blur-md border-b border-border" style={{ backgroundColor: 'rgba(220, 237, 225, 0.85)' }}>
         <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
           <button onClick={() => setSection('home')} className="font-display text-2xl tracking-wide">
             STUDIO<span className="opacity-40">.M</span>
