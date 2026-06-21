@@ -89,21 +89,10 @@ export default function Index() {
       r.readAsDataURL(file);
     });
 
-  const addPost = async (file: File) => {
-    const url = await fileToData(file);
-    const type: MediaType = file.type.startsWith('video') ? 'video' : 'image';
-    setPosts((p) => [{ id: Date.now().toString(), type, url, title: 'Новый пост', description: 'Описание' }, ...p]);
+  const saveDraft = (draftPosts: Post[], draftLinks: LinkButton[]) => {
+    setPosts(draftPosts);
+    setLinks(draftLinks);
   };
-
-  const updatePost = (id: string, patch: Partial<Post>) =>
-    setPosts((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-  const removePost = (id: string) => setPosts((p) => p.filter((x) => x.id !== id));
-
-  const updateLink = (id: string, patch: Partial<LinkButton>) =>
-    setLinks((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-  const removeLink = (id: string) => setLinks((l) => l.filter((x) => x.id !== id));
-  const addLink = () =>
-    setLinks((l) => [...l, { id: Date.now().toString(), label: 'Ссылка', href: 'https://', image: IMG_1 }]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -147,12 +136,7 @@ export default function Index() {
             login={() => setIsAdmin(pwd === ADMIN_PASSWORD)}
             posts={posts}
             links={links}
-            addPost={addPost}
-            updatePost={updatePost}
-            removePost={removePost}
-            addLink={addLink}
-            updateLink={updateLink}
-            removeLink={removeLink}
+            onSave={saveDraft}
             fileToData={fileToData}
           />
         )}
@@ -329,17 +313,12 @@ interface AdminProps {
   login: () => void;
   posts: Post[];
   links: LinkButton[];
-  addPost: (f: File) => void;
-  updatePost: (id: string, patch: Partial<Post>) => void;
-  removePost: (id: string) => void;
-  addLink: () => void;
-  updateLink: (id: string, patch: Partial<LinkButton>) => void;
-  removeLink: (id: string) => void;
+  onSave: (posts: Post[], links: LinkButton[]) => void;
   fileToData: (f: File) => Promise<string>;
 }
 
 function Admin(props: AdminProps) {
-  const { isAdmin, pwd, setPwd, login, posts, links, addPost, updatePost, removePost, addLink, updateLink, removeLink, fileToData } = props;
+  const { isAdmin, pwd, setPwd, login, posts, links, onSave, fileToData } = props;
   const [showPwd, setShowPwd] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -359,20 +338,7 @@ function Admin(props: AdminProps) {
   };
 
   const handleSave = () => {
-    draftPosts.forEach((p) => {
-      const orig = posts.find((x) => x.id === p.id);
-      if (!orig) addPost(p as unknown as File);
-      else if (JSON.stringify(orig) !== JSON.stringify(p)) updatePost(p.id, p);
-    });
-    posts.forEach((p) => { if (!draftPosts.find((x) => x.id === p.id)) removePost(p.id); });
-
-    draftLinks.forEach((l) => {
-      const orig = links.find((x) => x.id === l.id);
-      if (!orig) addLink();
-      else if (JSON.stringify(orig) !== JSON.stringify(l)) updateLink(l.id, l);
-    });
-    links.forEach((l) => { if (!draftLinks.find((x) => x.id === l.id)) removeLink(l.id); });
-
+    onSave(draftPosts, draftLinks);
     setSaved(true);
     if (savedTimer.current) clearTimeout(savedTimer.current);
     savedTimer.current = setTimeout(() => setSaved(false), 3000);
