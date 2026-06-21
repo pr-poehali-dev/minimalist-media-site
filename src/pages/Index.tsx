@@ -18,6 +18,16 @@ interface LinkButton {
   image: string;
 }
 
+interface Comment {
+  id: string;
+  postId: string;
+  author: string;
+  text: string;
+  likes: number;
+  likedBy: string[];
+  createdAt: number;
+}
+
 const IMG_1 = 'https://cdn.poehali.dev/projects/6920125d-6db0-4d12-9613-3be209c696e0/files/fcc963d7-0fe6-47ac-8a3e-a3d556a77bd5.jpg';
 const IMG_2 = 'https://cdn.poehali.dev/projects/6920125d-6db0-4d12-9613-3be209c696e0/files/444006cb-e488-49af-8e52-dbc023add220.jpg';
 const IMG_3 = 'https://cdn.poehali.dev/projects/6920125d-6db0-4d12-9613-3be209c696e0/files/601267cb-9521-4deb-a624-1f781c94cdd8.jpg';
@@ -53,26 +63,34 @@ function load<T>(key: string, fallback: T): T {
   }
 }
 
+function getVisitorId(): string {
+  let id = localStorage.getItem('mg_visitor_id');
+  if (!id) { id = Math.random().toString(36).slice(2); localStorage.setItem('mg_visitor_id', id); }
+  return id;
+}
+
 export default function Index() {
   const [section, setSection] = useState('home');
   const [prevSection, setPrevSection] = useState('home');
 
-  const goSection = (s: string) => {
-    setPrevSection(section);
-    setSection(s);
-  };
+  const goSection = (s: string) => { setPrevSection(section); setSection(s); };
+
   const [posts, setPosts] = useState<Post[]>(() => load('mg_posts', DEFAULT_POSTS));
   const [links, setLinks] = useState<LinkButton[]>(() => load('mg_links', DEFAULT_LINKS));
   const [likes, setLikes] = useState<Record<string, number>>(() => load('mg_likes', {}));
   const [liked, setLiked] = useState<Record<string, boolean>>(() => load('mg_liked', {}));
+  const [comments, setComments] = useState<Comment[]>(() => load('mg_comments', []));
   const [lightbox, setLightbox] = useState<Post | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pwd, setPwd] = useState('');
+
+  const visitorId = getVisitorId();
 
   useEffect(() => { localStorage.setItem('mg_posts', JSON.stringify(posts)); }, [posts]);
   useEffect(() => { localStorage.setItem('mg_links', JSON.stringify(links)); }, [links]);
   useEffect(() => { localStorage.setItem('mg_likes', JSON.stringify(likes)); }, [likes]);
   useEffect(() => { localStorage.setItem('mg_liked', JSON.stringify(liked)); }, [liked]);
+  useEffect(() => { localStorage.setItem('mg_comments', JSON.stringify(comments)); }, [comments]);
 
   const toggleLike = (id: string) => {
     setLiked((prev) => {
@@ -82,12 +100,23 @@ export default function Index() {
     });
   };
 
+  const addComment = (postId: string, author: string, text: string) => {
+    const c: Comment = { id: Date.now().toString(), postId, author: author.trim() || 'Гость', text: text.trim(), likes: 0, likedBy: [], createdAt: Date.now() };
+    setComments((prev) => [...prev, c]);
+  };
+
+  const likeComment = (cid: string) => {
+    setComments((prev) => prev.map((c) => {
+      if (c.id !== cid) return c;
+      const already = c.likedBy.includes(visitorId);
+      return { ...c, likes: already ? c.likes - 1 : c.likes + 1, likedBy: already ? c.likedBy.filter((x) => x !== visitorId) : [...c.likedBy, visitorId] };
+    }));
+  };
+
+  const deleteComment = (cid: string) => setComments((prev) => prev.filter((c) => c.id !== cid));
+
   const fileToData = (file: File): Promise<string> =>
-    new Promise((res) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result as string);
-      r.readAsDataURL(file);
-    });
+    new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(file); });
 
   const saveDraft = (draftPosts: Post[], draftLinks: LinkButton[]) => {
     setPosts(draftPosts);
@@ -103,42 +132,37 @@ export default function Index() {
           </button>
           <nav className="hidden md:flex items-center gap-10 text-sm tracking-widest uppercase">
             {nav.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => goSection(n.id)}
-                className={`transition-opacity ${section === n.id ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`}
-              >
+              <button key={n.id} onClick={() => goSection(n.id)}
+                className={`transition-opacity ${section === n.id ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`}>
                 {n.label}
               </button>
             ))}
           </nav>
-          <button
-            onClick={() => goSection('admin')}
-            className="text-xs tracking-widest uppercase opacity-50 hover:opacity-100 flex items-center gap-2"
-          >
+          <button onClick={() => goSection('admin')} className="text-xs tracking-widest uppercase opacity-50 hover:opacity-100 flex items-center gap-2">
             <Icon name="Lock" size={14} /> Админ
           </button>
         </div>
       </header>
 
       <main className="pt-20">
-        {section === 'home' && <Home posts={posts} links={links} go={goSection} openBox={setLightbox} />}
+        {section === 'home' && (
+          <Home posts={posts} links={links} go={goSection} openBox={setLightbox}
+            likes={likes} liked={liked} toggleLike={toggleLike}
+            comments={comments} addComment={addComment} likeComment={likeComment}
+            deleteComment={deleteComment} isAdmin={isAdmin} visitorId={visitorId} />
+        )}
         {section === 'gallery' && (
-          <Gallery posts={posts} likes={likes} liked={liked} like={toggleLike} openBox={setLightbox} onBack={() => goSection(prevSection)} />
+          <Gallery posts={posts} likes={likes} liked={liked} like={toggleLike}
+            openBox={setLightbox} onBack={() => goSection(prevSection)}
+            comments={comments} addComment={addComment} likeComment={likeComment}
+            deleteComment={deleteComment} isAdmin={isAdmin} visitorId={visitorId} />
         )}
         {section === 'about' && <About />}
         {section === 'contacts' && <Contacts links={links} />}
         {section === 'admin' && (
-          <Admin
-            isAdmin={isAdmin}
-            pwd={pwd}
-            setPwd={setPwd}
+          <Admin isAdmin={isAdmin} pwd={pwd} setPwd={setPwd}
             login={() => setIsAdmin(pwd === ADMIN_PASSWORD)}
-            posts={posts}
-            links={links}
-            onSave={saveDraft}
-            fileToData={fileToData}
-          />
+            posts={posts} links={links} onSave={saveDraft} fileToData={fileToData} />
         )}
       </main>
 
@@ -151,7 +175,134 @@ export default function Index() {
   );
 }
 
-function Home({ posts, links, go, openBox }: { posts: Post[]; links: LinkButton[]; go: (s: string) => void; openBox: (p: Post) => void }) {
+interface PostCardProps {
+  p: Post;
+  likes: Record<string, number>;
+  liked: Record<string, boolean>;
+  toggleLike: (id: string) => void;
+  openBox: (p: Post) => void;
+  comments: Comment[];
+  addComment: (postId: string, author: string, text: string) => void;
+  likeComment: (cid: string) => void;
+  deleteComment: (cid: string) => void;
+  isAdmin: boolean;
+  visitorId: string;
+}
+
+function PostCard({ p, likes, liked, toggleLike, openBox, comments, addComment, likeComment, deleteComment, isAdmin, visitorId }: PostCardProps) {
+  const [showComments, setShowComments] = useState(false);
+  const [author, setAuthor] = useState('');
+  const [text, setText] = useState('');
+  const postComments = comments.filter((c) => c.postId === p.id);
+
+  const submit = () => {
+    if (!text.trim()) return;
+    addComment(p.id, author, text);
+    setText('');
+  };
+
+  return (
+    <div className="break-inside-avoid bg-muted overflow-hidden">
+      <button onClick={() => openBox(p)} className="block w-full relative group">
+        {p.type === 'image' ? (
+          <img src={p.url} alt={p.title} className="w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+        ) : (
+          <div className="relative">
+            <video src={p.url} muted className="w-full object-cover" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
+                <Icon name="Play" size={20} className="text-black ml-0.5" />
+              </span>
+            </div>
+          </div>
+        )}
+        {p.type === 'video' && (
+          <>
+            <span className="absolute bottom-0 right-0 w-0 h-0"
+              style={{ borderLeft: '28px solid transparent', borderBottom: '28px solid white', opacity: 0.85 }} />
+            <span className="absolute top-3 left-3 bg-black/60 rounded-full p-1.5 flex items-center justify-center">
+              <Icon name="Video" size={14} className="text-white" />
+            </span>
+          </>
+        )}
+      </button>
+
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-xl leading-none">{p.title}</p>
+            <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={() => toggleLike(p.id)} className="flex items-center gap-1.5 text-sm">
+              <Icon name="Heart" size={18} className={liked[p.id] ? 'fill-current text-red-500' : 'opacity-50'} />
+              <span className="tabular-nums opacity-70">{likes[p.id] || 0}</span>
+            </button>
+            <button onClick={() => setShowComments((v) => !v)} className="flex items-center gap-1.5 text-sm opacity-50 hover:opacity-100 transition-opacity">
+              <Icon name="MessageCircle" size={18} />
+              <span className="tabular-nums">{postComments.length}</span>
+            </button>
+          </div>
+        </div>
+
+        {showComments && (
+          <div className="mt-4 border-t border-border pt-4 space-y-3">
+            {postComments.length === 0 && (
+              <p className="text-xs text-muted-foreground">Пока нет комментариев</p>
+            )}
+            {postComments.map((c) => (
+              <div key={c.id} className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <span className="text-xs font-medium opacity-70">{c.author}</span>
+                  <p className="text-sm mt-0.5">{c.text}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => likeComment(c.id)} className="flex items-center gap-1 text-xs opacity-50 hover:opacity-100 transition-opacity">
+                    <Icon name="Heart" size={13} className={c.likedBy.includes(visitorId) ? 'fill-current text-red-500' : ''} />
+                    {c.likes > 0 && <span>{c.likes}</span>}
+                  </button>
+                  {isAdmin && (
+                    <button onClick={() => deleteComment(c.id)} className="opacity-30 hover:opacity-100 hover:text-red-500 transition-colors">
+                      <Icon name="Trash2" size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div className="flex gap-2 pt-2">
+              <input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Имя"
+                className="w-24 border border-border bg-transparent px-2 py-1.5 text-xs outline-none focus:border-foreground shrink-0" />
+              <input value={text} onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="Комментарий..."
+                className="flex-1 border border-border bg-transparent px-2 py-1.5 text-xs outline-none focus:border-foreground" />
+              <button onClick={submit} className="px-3 py-1.5 bg-foreground text-background text-xs hover:opacity-80 transition-opacity shrink-0">
+                <Icon name="Send" size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface HomeProps {
+  posts: Post[];
+  links: LinkButton[];
+  go: (s: string) => void;
+  openBox: (p: Post) => void;
+  likes: Record<string, number>;
+  liked: Record<string, boolean>;
+  toggleLike: (id: string) => void;
+  comments: Comment[];
+  addComment: (postId: string, author: string, text: string) => void;
+  likeComment: (cid: string) => void;
+  deleteComment: (cid: string) => void;
+  isAdmin: boolean;
+  visitorId: string;
+}
+
+function Home({ posts, links, go, openBox, likes, liked, toggleLike, comments, addComment, likeComment, deleteComment, isAdmin, visitorId }: HomeProps) {
   return (
     <div className="animate-fade-in">
       <section className="max-w-6xl mx-auto px-6 pt-24 pb-20">
@@ -162,50 +313,30 @@ function Home({ posts, links, go, openBox }: { posts: Post[]; links: LinkButton[
         <p className="mt-8 max-w-md text-muted-foreground leading-relaxed">
           Коллекция визуальных работ. Раскройте любую — фото на весь экран, видео со звуком.
         </p>
-        <button
-          onClick={() => go('gallery')}
-          className="mt-10 inline-flex items-center gap-3 border-b border-foreground pb-1 text-sm tracking-widest uppercase hover:gap-5 transition-all"
-        >
+        <button onClick={() => go('gallery')}
+          className="mt-10 inline-flex items-center gap-3 border-b border-foreground pb-1 text-sm tracking-widest uppercase hover:gap-5 transition-all">
           Смотреть галерею <Icon name="ArrowRight" size={16} />
         </button>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        {posts.slice(0, 3).map((p, i) => (
-          <button
-            key={p.id}
-            onClick={() => openBox(p)}
-            className="group relative overflow-hidden hover-lift bg-muted animate-scale-in"
-            style={{ animationDelay: `${i * 80}ms`, aspectRatio: '3/4' }}
-          >
-            {p.type === 'image' ? (
-              <img src={p.url} alt={p.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-            ) : (
-              <video src={p.url} muted className="w-full h-full object-cover" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-5">
-              <span className="text-white font-display text-2xl">{p.title}</span>
+      <section className="max-w-6xl mx-auto px-6">
+        <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 [&>*]:mb-4">
+          {posts.slice(0, 3).map((p, i) => (
+            <div key={p.id} className="animate-scale-in" style={{ animationDelay: `${i * 80}ms` }}>
+              <PostCard p={p} likes={likes} liked={liked} toggleLike={toggleLike} openBox={openBox}
+                comments={comments} addComment={addComment} likeComment={likeComment}
+                deleteComment={deleteComment} isAdmin={isAdmin} visitorId={visitorId} />
             </div>
-            {p.type === 'video' && (
-              <span className="absolute top-3 left-3 bg-black/60 rounded-full p-1.5 flex items-center justify-center">
-                <Icon name="Video" size={14} className="text-white" />
-              </span>
-            )}
-          </button>
-        ))}
+          ))}
+        </div>
       </section>
 
       <section className="max-w-6xl mx-auto px-6 mt-28">
         <h2 className="font-display text-4xl mb-8">Найти нас</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {links.map((l) => (
-            <a
-              key={l.id}
-              href={l.href}
-              target="_blank"
-              rel="noreferrer"
-              className="group relative h-44 overflow-hidden hover-lift"
-            >
+            <a key={l.id} href={l.href} target="_blank" rel="noreferrer"
+              className="group relative h-44 overflow-hidden hover-lift">
               <img src={l.image} alt={l.label} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-black/35 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                 <span className="text-white tracking-widest uppercase text-sm flex items-center gap-2">
@@ -220,10 +351,22 @@ function Home({ posts, links, go, openBox }: { posts: Post[]; links: LinkButton[
   );
 }
 
-function Gallery({ posts, likes, liked, like, openBox, onBack }: {
-  posts: Post[]; likes: Record<string, number>; liked: Record<string, boolean>;
-  like: (id: string) => void; openBox: (p: Post) => void; onBack: () => void;
-}) {
+interface GalleryProps {
+  posts: Post[];
+  likes: Record<string, number>;
+  liked: Record<string, boolean>;
+  like: (id: string) => void;
+  openBox: (p: Post) => void;
+  onBack: () => void;
+  comments: Comment[];
+  addComment: (postId: string, author: string, text: string) => void;
+  likeComment: (cid: string) => void;
+  deleteComment: (cid: string) => void;
+  isAdmin: boolean;
+  visitorId: string;
+}
+
+function Gallery({ posts, likes, liked, like, openBox, onBack, comments, addComment, likeComment, deleteComment, isAdmin, visitorId }: GalleryProps) {
   return (
     <div className="max-w-6xl mx-auto px-6 pt-20 pb-10 animate-fade-in">
       <button onClick={onBack} className="flex items-center gap-2 text-xs tracking-widest uppercase opacity-50 hover:opacity-100 transition-opacity mb-10">
@@ -232,40 +375,10 @@ function Gallery({ posts, likes, liked, like, openBox, onBack }: {
       <h1 className="font-display text-5xl md:text-7xl mb-12">Галерея</h1>
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 [&>*]:mb-4">
         {posts.map((p, i) => (
-          <div key={p.id} className="break-inside-avoid group relative overflow-hidden bg-muted animate-scale-in" style={{ animationDelay: `${i * 60}ms` }}>
-            <button onClick={() => openBox(p)} className="block w-full relative">
-              {p.type === 'image' ? (
-                <img src={p.url} alt={p.title} className="w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
-              ) : (
-                <div className="relative">
-                  <video src={p.url} muted className="w-full object-cover" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
-                      <Icon name="Play" size={20} className="text-black ml-0.5" />
-                    </span>
-                  </div>
-                </div>
-              )}
-              {p.type === 'video' && (
-                <>
-                  <span className="absolute bottom-0 right-0 w-0 h-0"
-                    style={{ borderLeft: '28px solid transparent', borderBottom: '28px solid white', opacity: 0.85 }} />
-                  <span className="absolute top-3 left-3 bg-black/60 rounded-full p-1.5 flex items-center justify-center">
-                    <Icon name="Video" size={14} className="text-white" />
-                  </span>
-                </>
-              )}
-            </button>
-            <div className="flex items-center justify-between p-4">
-              <div>
-                <p className="font-display text-xl leading-none">{p.title}</p>
-                <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
-              </div>
-              <button onClick={() => like(p.id)} className="flex items-center gap-1.5 text-sm shrink-0 ml-3">
-                <Icon name="Heart" size={18} className={liked[p.id] ? 'fill-current text-red-500' : 'opacity-50'} />
-                <span className="tabular-nums opacity-70">{likes[p.id] || 0}</span>
-              </button>
-            </div>
+          <div key={p.id} className="animate-scale-in" style={{ animationDelay: `${i * 60}ms` }}>
+            <PostCard p={p} likes={likes} liked={liked} toggleLike={like} openBox={openBox}
+              comments={comments} addComment={addComment} likeComment={likeComment}
+              deleteComment={deleteComment} isAdmin={isAdmin} visitorId={visitorId} />
           </div>
         ))}
       </div>
@@ -335,7 +448,6 @@ function Admin(props: AdminProps) {
   const { isAdmin, pwd, setPwd, login, posts, links, onSave, fileToData } = props;
   const [showPwd, setShowPwd] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const [draftPosts, setDraftPosts] = useState<Post[]>(posts);
   const [draftLinks, setDraftLinks] = useState<LinkButton[]>(links);
   const [saved, setSaved] = useState(false);
@@ -367,13 +479,11 @@ function Admin(props: AdminProps) {
   const draftUpdatePost = (id: string, patch: Partial<Post>) =>
     setDraftPosts((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   const draftRemovePost = (id: string) => setDraftPosts((p) => p.filter((x) => x.id !== id));
-
   const draftUpdateLink = (id: string, patch: Partial<LinkButton>) =>
     setDraftLinks((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   const draftRemoveLink = (id: string) => setDraftLinks((l) => l.filter((x) => x.id !== id));
   const draftAddLink = () =>
     setDraftLinks((l) => [...l, { id: Date.now().toString(), label: 'Ссылка', href: 'https://', image: IMG_1 }]);
-
   const onLinkImage = async (id: string, file: File) => draftUpdateLink(id, { image: await fileToData(file) });
 
   if (!isAdmin) {
@@ -381,14 +491,9 @@ function Admin(props: AdminProps) {
       <div className="max-w-sm mx-auto px-6 pt-32 pb-10 animate-fade-in text-center">
         <Icon name="Lock" size={32} className="mx-auto opacity-40" />
         <h1 className="font-display text-4xl mt-6 mb-8">Вход для админа</h1>
-        <input
-          type={showPwd ? 'text' : 'password'}
-          value={pwd}
-          onChange={handlePwdChange}
-          onKeyDown={(e) => e.key === 'Enter' && login()}
-          placeholder="•••"
-          className="w-full border border-border bg-transparent px-4 py-3 text-center outline-none focus:border-foreground transition-colors"
-        />
+        <input type={showPwd ? 'text' : 'password'} value={pwd} onChange={handlePwdChange}
+          onKeyDown={(e) => e.key === 'Enter' && login()} placeholder="•••"
+          className="w-full border border-border bg-transparent px-4 py-3 text-center outline-none focus:border-foreground transition-colors" />
         <button onClick={login} className="mt-4 w-full bg-foreground text-background py-3 tracking-widest uppercase text-sm hover:opacity-80 transition-opacity">
           Войти
         </button>
@@ -414,8 +519,7 @@ function Admin(props: AdminProps) {
         {draftPosts.map((p) => (
           <div key={p.id} className="flex gap-4 border border-border p-4">
             <div className="w-24 h-24 bg-muted shrink-0 overflow-hidden">
-              {p.type === 'image'
-                ? <img src={p.url} className="w-full h-full object-cover" alt="" />
+              {p.type === 'image' ? <img src={p.url} className="w-full h-full object-cover" alt="" />
                 : <video src={p.url} muted className="w-full h-full object-cover" />}
             </div>
             <div className="flex-1 space-y-2">
@@ -462,10 +566,8 @@ function Admin(props: AdminProps) {
         ))}
       </div>
 
-      <button
-        onClick={handleSave}
-        className="w-full py-4 bg-foreground text-background tracking-widest uppercase text-sm hover:opacity-80 transition-opacity flex items-center justify-center gap-3"
-      >
+      <button onClick={handleSave}
+        className="w-full py-4 bg-foreground text-background tracking-widest uppercase text-sm hover:opacity-80 transition-opacity flex items-center justify-center gap-3">
         <Icon name="Save" size={16} /> Сохранить изменения
       </button>
 
@@ -483,10 +585,7 @@ function Lightbox({ post, close }: { post: Post; close: () => void }) {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && close();
     window.addEventListener('keydown', esc);
     document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', esc);
-      document.body.style.overflow = '';
-    };
+    return () => { window.removeEventListener('keydown', esc); document.body.style.overflow = ''; };
   }, [close]);
 
   return (
