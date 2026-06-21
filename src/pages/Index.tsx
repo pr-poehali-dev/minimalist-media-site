@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 
 type MediaType = 'image' | 'video';
@@ -340,6 +340,15 @@ interface AdminProps {
 
 function Admin(props: AdminProps) {
   const { isAdmin, pwd, setPwd, login, posts, links, addPost, updatePost, removePost, addLink, updateLink, removeLink, fileToData } = props;
+  const [showPwd, setShowPwd] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePwdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPwd(e.target.value);
+    setShowPwd(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setShowPwd(false), 5000);
+  };
 
   if (!isAdmin) {
     return (
@@ -347,9 +356,9 @@ function Admin(props: AdminProps) {
         <Icon name="Lock" size={32} className="mx-auto opacity-40" />
         <h1 className="font-display text-4xl mt-6 mb-8">Вход для админа</h1>
         <input
-          type="password"
+          type={showPwd ? 'text' : 'password'}
           value={pwd}
-          onChange={(e) => setPwd(e.target.value)}
+          onChange={handlePwdChange}
           onKeyDown={(e) => e.key === 'Enter' && login()}
           placeholder="•••"
           className="w-full border border-border bg-transparent px-4 py-3 text-center outline-none focus:border-foreground transition-colors"
