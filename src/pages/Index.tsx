@@ -165,7 +165,7 @@ function Home({ posts, links, go, openBox }: { posts: Post[]; links: LinkButton[
   return (
     <div className="animate-fade-in">
       <section className="max-w-6xl mx-auto px-6 pt-24 pb-20">
-        <p className="text-xs tracking-luxe uppercase opacity-50 mb-8">Фото · Видео · Минимализм</p>
+        <p className="text-xs tracking-luxe uppercase opacity-50 mb-8">Фото · Видео · Gif</p>
         <h1 className="font-display text-6xl md:text-8xl leading-[0.95] max-w-4xl">
           Хороший контент
         </h1>
