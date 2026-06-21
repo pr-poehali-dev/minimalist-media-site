@@ -35,7 +35,7 @@ const DEFAULT_LINKS: LinkButton[] = [
   { id: 'l3', label: 'Behance', href: 'https://behance.net', image: IMG_1 },
 ];
 
-const ADMIN_PASSWORD = 'admin';
+const ADMIN_PASSWORD = 'Iwaqq2';
 
 const nav = [
   { id: 'home', label: 'Главная' },
@@ -342,7 +342,7 @@ function Admin(props: AdminProps) {
           value={pwd}
           onChange={(e) => setPwd(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && login()}
-          placeholder="Пароль (admin)"
+          placeholder="•••"
           className="w-full border border-border bg-transparent px-4 py-3 text-center outline-none focus:border-foreground transition-colors"
         />
         <button onClick={login} className="mt-4 w-full bg-foreground text-background py-3 tracking-widest uppercase text-sm hover:opacity-80 transition-opacity">
