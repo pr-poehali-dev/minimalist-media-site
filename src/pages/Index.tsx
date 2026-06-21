@@ -343,12 +343,58 @@ function Admin(props: AdminProps) {
   const [showPwd, setShowPwd] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [draftPosts, setDraftPosts] = useState<Post[]>(posts);
+  const [draftLinks, setDraftLinks] = useState<LinkButton[]>(links);
+  const [saved, setSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { setDraftPosts(posts); }, [isAdmin]);
+  useEffect(() => { setDraftLinks(links); }, [isAdmin]);
+
   const handlePwdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPwd(e.target.value);
     setShowPwd(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => setShowPwd(false), 5000);
   };
+
+  const handleSave = () => {
+    draftPosts.forEach((p) => {
+      const orig = posts.find((x) => x.id === p.id);
+      if (!orig) addPost(p as unknown as File);
+      else if (JSON.stringify(orig) !== JSON.stringify(p)) updatePost(p.id, p);
+    });
+    posts.forEach((p) => { if (!draftPosts.find((x) => x.id === p.id)) removePost(p.id); });
+
+    draftLinks.forEach((l) => {
+      const orig = links.find((x) => x.id === l.id);
+      if (!orig) addLink();
+      else if (JSON.stringify(orig) !== JSON.stringify(l)) updateLink(l.id, l);
+    });
+    links.forEach((l) => { if (!draftLinks.find((x) => x.id === l.id)) removeLink(l.id); });
+
+    setSaved(true);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaved(false), 3000);
+  };
+
+  const draftAddPost = async (file: File) => {
+    const url = await fileToData(file);
+    const type: MediaType = file.type.startsWith('video') ? 'video' : 'image';
+    setDraftPosts((p) => [{ id: Date.now().toString(), type, url, title: 'Новый пост', description: 'Описание' }, ...p]);
+  };
+
+  const draftUpdatePost = (id: string, patch: Partial<Post>) =>
+    setDraftPosts((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const draftRemovePost = (id: string) => setDraftPosts((p) => p.filter((x) => x.id !== id));
+
+  const draftUpdateLink = (id: string, patch: Partial<LinkButton>) =>
+    setDraftLinks((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const draftRemoveLink = (id: string) => setDraftLinks((l) => l.filter((x) => x.id !== id));
+  const draftAddLink = () =>
+    setDraftLinks((l) => [...l, { id: Date.now().toString(), label: 'Ссылка', href: 'https://', image: IMG_1 }]);
+
+  const onLinkImage = async (id: string, file: File) => draftUpdateLink(id, { image: await fileToData(file) });
 
   if (!isAdmin) {
     return (
@@ -371,10 +417,8 @@ function Admin(props: AdminProps) {
     );
   }
 
-  const onLinkImage = async (id: string, file: File) => updateLink(id, { image: await fileToData(file) });
-
   return (
-    <div className="max-w-4xl mx-auto px-6 pt-20 pb-10 animate-fade-in">
+    <div className="max-w-4xl mx-auto px-6 pt-20 pb-24 animate-fade-in">
       <h1 className="font-display text-5xl mb-10">Админ-панель</h1>
 
       <div className="flex flex-wrap gap-3 items-center justify-between mb-6">
@@ -382,12 +426,12 @@ function Admin(props: AdminProps) {
         <label className="text-xs tracking-widest uppercase border border-foreground px-4 py-2.5 cursor-pointer hover:bg-foreground hover:text-background transition-colors flex items-center gap-2">
           <Icon name="Upload" size={14} /> Загрузить фото / видео
           <input type="file" accept="image/*,video/*" className="hidden"
-            onChange={(e) => e.target.files?.[0] && addPost(e.target.files[0])} />
+            onChange={(e) => e.target.files?.[0] && draftAddPost(e.target.files[0])} />
         </label>
       </div>
 
       <div className="space-y-4 mb-16">
-        {posts.map((p) => (
+        {draftPosts.map((p) => (
           <div key={p.id} className="flex gap-4 border border-border p-4">
             <div className="w-24 h-24 bg-muted shrink-0 overflow-hidden">
               {p.type === 'image'
@@ -395,12 +439,12 @@ function Admin(props: AdminProps) {
                 : <video src={p.url} muted className="w-full h-full object-cover" />}
             </div>
             <div className="flex-1 space-y-2">
-              <input value={p.title} onChange={(e) => updatePost(p.id, { title: e.target.value })}
+              <input value={p.title} onChange={(e) => draftUpdatePost(p.id, { title: e.target.value })}
                 className="w-full border border-border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground" />
-              <input value={p.description} onChange={(e) => updatePost(p.id, { description: e.target.value })}
+              <input value={p.description} onChange={(e) => draftUpdatePost(p.id, { description: e.target.value })}
                 className="w-full border border-border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground" />
             </div>
-            <button onClick={() => removePost(p.id)} className="opacity-50 hover:opacity-100 hover:text-red-500 transition-colors self-start">
+            <button onClick={() => draftRemovePost(p.id)} className="opacity-50 hover:opacity-100 hover:text-red-500 transition-colors self-start">
               <Icon name="Trash2" size={18} />
             </button>
           </div>
@@ -409,13 +453,13 @@ function Admin(props: AdminProps) {
 
       <div className="flex flex-wrap gap-3 items-center justify-between mb-6">
         <h2 className="font-display text-3xl">Кнопки-ссылки</h2>
-        <button onClick={addLink} className="text-xs tracking-widest uppercase border border-foreground px-4 py-2.5 hover:bg-foreground hover:text-background transition-colors flex items-center gap-2">
+        <button onClick={draftAddLink} className="text-xs tracking-widest uppercase border border-foreground px-4 py-2.5 hover:bg-foreground hover:text-background transition-colors flex items-center gap-2">
           <Icon name="Plus" size={14} /> Добавить ссылку
         </button>
       </div>
 
-      <div className="space-y-4">
-        {links.map((l) => (
+      <div className="space-y-4 mb-16">
+        {draftLinks.map((l) => (
           <div key={l.id} className="flex gap-4 border border-border p-4 items-center">
             <label className="w-20 h-20 bg-muted shrink-0 overflow-hidden cursor-pointer relative group">
               <img src={l.image} className="w-full h-full object-cover" alt="" />
@@ -426,17 +470,30 @@ function Admin(props: AdminProps) {
                 onChange={(e) => e.target.files?.[0] && onLinkImage(l.id, e.target.files[0])} />
             </label>
             <div className="flex-1 space-y-2">
-              <input value={l.label} onChange={(e) => updateLink(l.id, { label: e.target.value })} placeholder="Название"
+              <input value={l.label} onChange={(e) => draftUpdateLink(l.id, { label: e.target.value })} placeholder="Название"
                 className="w-full border border-border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground" />
-              <input value={l.href} onChange={(e) => updateLink(l.id, { href: e.target.value })} placeholder="https://..."
+              <input value={l.href} onChange={(e) => draftUpdateLink(l.id, { href: e.target.value })} placeholder="https://..."
                 className="w-full border border-border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground" />
             </div>
-            <button onClick={() => removeLink(l.id)} className="opacity-50 hover:opacity-100 hover:text-red-500 transition-colors">
+            <button onClick={() => draftRemoveLink(l.id)} className="opacity-50 hover:opacity-100 hover:text-red-500 transition-colors">
               <Icon name="Trash2" size={18} />
             </button>
           </div>
         ))}
       </div>
+
+      <button
+        onClick={handleSave}
+        className="w-full py-4 bg-foreground text-background tracking-widest uppercase text-sm hover:opacity-80 transition-opacity flex items-center justify-center gap-3"
+      >
+        <Icon name="Save" size={16} /> Сохранить изменения
+      </button>
+
+      {saved && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-foreground text-background px-8 py-3 text-sm tracking-widest uppercase flex items-center gap-3 animate-fade-in shadow-xl">
+          <Icon name="Check" size={16} /> Успешно ✓
+        </div>
+      )}
     </div>
   );
 }
