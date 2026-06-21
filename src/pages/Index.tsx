@@ -228,7 +228,7 @@ function Gallery({ posts, likes, liked, like, openBox, onBack }: {
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 [&>*]:mb-4">
         {posts.map((p, i) => (
           <div key={p.id} className="break-inside-avoid group relative overflow-hidden bg-muted animate-scale-in" style={{ animationDelay: `${i * 60}ms` }}>
-            <button onClick={() => openBox(p)} className="block w-full">
+            <button onClick={() => openBox(p)} className="block w-full relative">
               {p.type === 'image' ? (
                 <img src={p.url} alt={p.title} className="w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
               ) : (
@@ -240,6 +240,10 @@ function Gallery({ posts, likes, liked, like, openBox, onBack }: {
                     </span>
                   </div>
                 </div>
+              )}
+              {p.type === 'video' && (
+                <span className="absolute bottom-0 right-0 w-0 h-0"
+                  style={{ borderLeft: '28px solid transparent', borderBottom: '28px solid white', opacity: 0.85 }} />
               )}
             </button>
             <div className="flex items-center justify-between p-4">
