@@ -166,7 +166,7 @@ export default function Index() {
         )}
       </main>
 
-      <footer className="border-t border-border mt-32 py-12 text-center text-xs tracking-widest uppercase opacity-40">
+      <footer className="border-t border-border mt-32 py-12 text-center text-xs tracking-widest uppercase opacity-0 pointer-events-none select-none h-0 overflow-hidden">
         STUDIO.M — {new Date().getFullYear()}
       </footer>
 
@@ -450,7 +450,7 @@ function Admin(props: AdminProps) {
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [draftPosts, setDraftPosts] = useState<Post[]>(posts);
   const [draftLinks, setDraftLinks] = useState<LinkButton[]>(links);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<'idle' | 'in' | 'out'>('idle');
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setDraftPosts(posts); }, [isAdmin]);
@@ -465,15 +465,20 @@ function Admin(props: AdminProps) {
 
   const handleSave = () => {
     onSave(draftPosts, draftLinks);
-    setSaved(true);
+    setSaved('in');
     if (savedTimer.current) clearTimeout(savedTimer.current);
-    savedTimer.current = setTimeout(() => setSaved(false), 3000);
+    savedTimer.current = setTimeout(() => setSaved('out'), 2200);
+    setTimeout(() => setSaved('idle'), 2900);
   };
 
-  const draftAddPost = async (file: File) => {
-    const url = await fileToData(file);
-    const type: MediaType = file.type.startsWith('video') ? 'video' : 'image';
-    setDraftPosts((p) => [{ id: Date.now().toString(), type, url, title: 'Новый пост', description: 'Описание' }, ...p]);
+  const draftAddPost = async (files: FileList) => {
+    const newPosts: Post[] = [];
+    for (const file of Array.from(files)) {
+      const url = await fileToData(file);
+      const type: MediaType = file.type.startsWith('video') ? 'video' : 'image';
+      newPosts.push({ id: (Date.now() + Math.random()).toString(), type, url, title: 'Новый пост', description: 'Описание' });
+    }
+    setDraftPosts((p) => [...newPosts, ...p]);
   };
 
   const draftUpdatePost = (id: string, patch: Partial<Post>) =>
@@ -509,9 +514,9 @@ function Admin(props: AdminProps) {
       <div className="flex flex-wrap gap-3 items-center justify-between mb-6">
         <h2 className="font-display text-3xl">Посты</h2>
         <label className="text-xs tracking-widest uppercase border border-foreground px-4 py-2.5 cursor-pointer hover:bg-foreground hover:text-background transition-colors flex items-center gap-2">
-          <Icon name="Upload" size={14} /> Загрузить фото / видео
-          <input type="file" accept="image/*,video/*" className="hidden"
-            onChange={(e) => e.target.files?.[0] && draftAddPost(e.target.files[0])} />
+          <Icon name="Upload" size={14} /> Загрузить файлы
+          <input type="file" accept="image/*,video/*" multiple className="hidden"
+            onChange={(e) => e.target.files && e.target.files.length > 0 && draftAddPost(e.target.files)} />
         </label>
       </div>
 
@@ -571,8 +576,8 @@ function Admin(props: AdminProps) {
         <Icon name="Save" size={16} /> Сохранить изменения
       </button>
 
-      {saved && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-foreground text-background px-8 py-3 text-sm tracking-widest uppercase flex items-center gap-3 animate-fade-in shadow-xl">
+      {saved !== 'idle' && (
+        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 bg-foreground text-background px-8 py-3 text-sm tracking-widest uppercase flex items-center gap-3 shadow-xl ${saved === 'in' ? 'animate-fade-in' : 'animate-fade-out'}`}>
           <Icon name="Check" size={16} /> Успешно ✓
         </div>
       )}
