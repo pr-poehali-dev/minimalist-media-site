@@ -167,7 +167,7 @@ function Home({ posts, links, go, openBox }: { posts: Post[]; links: LinkButton[
       <section className="max-w-6xl mx-auto px-6 pt-24 pb-20">
         <p className="text-xs tracking-luxe uppercase opacity-50 mb-8">Фото · Видео · Минимализм</p>
         <h1 className="font-display text-6xl md:text-8xl leading-[0.95] max-w-4xl">
-          Пространство, где<br /><span className="italic opacity-60">медиа дышит</span>
+          Хороший контент
         </h1>
         <p className="mt-8 max-w-md text-muted-foreground leading-relaxed">
           Коллекция визуальных работ. Раскройте любую — фото на весь экран, видео со звуком.
