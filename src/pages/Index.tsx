@@ -186,6 +186,11 @@ function Home({ posts, links, go, openBox }: { posts: Post[]; links: LinkButton[
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-5">
               <span className="text-white font-display text-2xl">{p.title}</span>
             </div>
+            {p.type === 'video' && (
+              <span className="absolute top-3 left-3 bg-black/60 rounded-full p-1.5 flex items-center justify-center">
+                <Icon name="Video" size={14} className="text-white" />
+              </span>
+            )}
           </button>
         ))}
       </section>
@@ -242,8 +247,13 @@ function Gallery({ posts, likes, liked, like, openBox, onBack }: {
                 </div>
               )}
               {p.type === 'video' && (
-                <span className="absolute bottom-0 right-0 w-0 h-0"
-                  style={{ borderLeft: '28px solid transparent', borderBottom: '28px solid white', opacity: 0.85 }} />
+                <>
+                  <span className="absolute bottom-0 right-0 w-0 h-0"
+                    style={{ borderLeft: '28px solid transparent', borderBottom: '28px solid white', opacity: 0.85 }} />
+                  <span className="absolute top-3 left-3 bg-black/60 rounded-full p-1.5 flex items-center justify-center">
+                    <Icon name="Video" size={14} className="text-white" />
+                  </span>
+                </>
               )}
             </button>
             <div className="flex items-center justify-between p-4">
